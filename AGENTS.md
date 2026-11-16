@@ -1,3 +1,8 @@
+## Preserve the established design
+
+- Keep the premium homepage, interactive 3D hero scene, immersive editorial sections, glass header and navigation/button hover effects when updating content or adding pages. Reference websites guide content and page structure only.
+- Keep the homepage inquiry form immediately before the footer, accessible custom dropdowns, and site-wide Lenis with nested scrolling and reduced-motion support.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know

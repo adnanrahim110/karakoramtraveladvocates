@@ -1,26 +1,46 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-midnight-navy: #0b2c36;
+  --color-alpine-teal: #176371;
+  --color-warm-gold: #d4a04c;
+  --color-glacier-cream: #f6f2e9;
+  --color-slate-ink: #17272d;
+  --font-display: var(--font-cinzel), Georgia, serif;
+  --font-sans: var(--font-montserrat), system-ui, sans-serif;
+  --font-editorial: Georgia, "Times New Roman", serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    @apply bg-glacier-cream text-slate-ink;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    @apply bg-glacier-cream text-slate-ink font-sans antialiased selection:bg-warm-gold selection:text-midnight-navy overflow-x-hidden;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display tracking-tight;
+  }
+
+  section[id] {
+    @apply scroll-mt-24;
+  }
+
+  html.lenis,
+  html.lenis body {
+    @apply h-auto;
+  }
+
+  html.lenis.lenis-stopped {
+    @apply overflow-hidden;
+  }
+
+  .lenis [data-lenis-prevent] {
+    @apply overscroll-contain;
+  }
 }

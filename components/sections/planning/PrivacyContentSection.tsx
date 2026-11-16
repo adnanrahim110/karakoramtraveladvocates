@@ -1,0 +1,12 @@
+import { INQUIRY_EMAIL } from "@/lib/inquiry-email";
+
+const sections = [
+  { title: "Your inquiry brief", paragraphs: ["The inquiry form prepares an email draft on your device. Completing the form does not submit your details to a website database. You decide whether to open your email app, copy the brief or send a message.", "If you use the copy option, your browser may ask for clipboard permission. A prepared brief contains the information you entered, so review it before sharing it."] },
+  { title: "When you send an email", paragraphs: ["An email sent to Karakoram Travel Advocates contains the contact details and journey information you choose to share. We use that information to respond to your request and discuss the proposed arrangements.", "Avoid including passport scans, payment-card details or sensitive medical documents in an initial inquiry. If further information is needed, discuss an appropriate way to provide it with the team."] },
+  { title: "Website delivery and external links", paragraphs: ["Accessing a website involves ordinary connection information, such as your requested page and network address, being processed by the hosting service to deliver the page. Your email provider applies its own privacy practices when you use it to send an inquiry.", "Photography credits and official travel sources link to other websites. Following a link takes you to that provider, whose privacy practices apply there."] },
+  { title: "Questions about your information", paragraphs: ["Contact us if you have questions about information you have shared, or would like to request a correction or deletion. We will discuss the request and any records that need to be kept for an active arrangement or applicable obligations."] },
+];
+
+export function PrivacyContentSection() {
+  return <section aria-label="Privacy information" className="mx-auto w-full max-w-360 px-6 pb-20 pt-12 sm:px-10 lg:px-16 lg:pb-28"><div className="max-w-3xl space-y-10">{sections.map((section) => <section key={section.title} aria-label={section.title}><h2 className="font-editorial text-3xl font-normal leading-tight text-midnight-navy">{section.title}</h2><div className="mt-5 space-y-5 text-sm leading-8 text-slate-ink/85">{section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div></section>)}<a href={`mailto:${INQUIRY_EMAIL}`} className="inline-flex min-h-12 break-all items-center text-sm font-semibold text-alpine-teal underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4">{INQUIRY_EMAIL}</a></div></section>;
+}

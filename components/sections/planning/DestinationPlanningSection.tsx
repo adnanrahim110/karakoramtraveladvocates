@@ -1,0 +1,8 @@
+import Link from "next/link";
+import type { TravelDestination } from "@/lib/data/destination-content";
+
+export function DestinationPlanningSection({ destination }: { destination: TravelDestination }) {
+  return (
+    <section aria-labelledby="destination-planning-title" className="border-y border-midnight-navy/20 bg-white/35"><div className="mx-auto grid max-w-360 gap-12 px-6 py-16 sm:px-10 lg:grid-cols-2 lg:px-16 lg:py-20"><div><h2 id="destination-planning-title" className="font-editorial text-4xl font-normal text-midnight-navy">Make the days count.</h2><ul className="mt-6 space-y-4">{destination.highlights.map((highlight, index) => <li key={highlight} className="flex gap-4 border-b border-midnight-navy/15 pb-4 text-sm leading-7"><span className="font-mono text-alpine-teal" aria-hidden="true">0{index + 1}</span>{highlight}</li>)}</ul></div><div><dl className="grid gap-6 sm:grid-cols-2"><div><dt className="text-xs font-semibold text-alpine-teal">Suggested stay</dt><dd className="mt-2 text-sm leading-7">{destination.suggestedStay}</dd></div><div><dt className="text-xs font-semibold text-alpine-teal">Planning season</dt><dd className="mt-2 text-sm leading-7">{destination.season}</dd></div><div className="sm:col-span-2"><dt className="text-xs font-semibold text-alpine-teal">Getting there</dt><dd className="mt-2 text-sm leading-7">{destination.access}</dd></div></dl><p className="mt-8 text-sm leading-7 text-slate-ink/85">{destination.planning}</p><Link href="/travel-guide" className="mt-4 inline-flex min-h-11 items-center text-xs font-semibold text-alpine-teal underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4">Read the planning guides</Link></div></div></section>
+  );
+}
