@@ -1,13 +1,13 @@
 "use client";
 
+import {
+    useInteractive,
+    type InquiryContextPayload,
+} from "@/components/spatial/InteractiveContext";
+import { cn } from "@/lib/utils";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import {
-  useInteractive,
-  type InquiryContextPayload,
-} from "@/components/spatial/InteractiveContext";
-import { cn } from "@/lib/utils";
 
 const variants = {
   dark: "border-midnight-navy bg-midnight-navy text-glacier-cream hover:border-warm-gold hover:text-midnight-navy focus-visible:text-midnight-navy",
@@ -32,14 +32,16 @@ export function InquiryButton({
 }) {
   const { openInquiry } = useInteractive();
   const classes = cn(
-        "group relative isolate inline-flex min-h-14 cursor-pointer items-center justify-between gap-8 overflow-hidden border px-6 py-4 text-sm font-semibold transition-colors duration-150 ease-[cubic-bezier(0.2,0.65,0.3,1)] hover:duration-200 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-warm-gold active:brightness-90",
-        variants[variant],
-        className,
-      );
+    "group relative isolate inline-flex min-h-14 cursor-pointer items-center justify-between gap-8 overflow-hidden border px-6 py-4 text-sm font-semibold transition-colors duration-150 ease-[cubic-bezier(0.2,0.65,0.3,1)] hover:duration-200 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-warm-gold active:brightness-90",
+    variants[variant],
+    className,
+  );
   const content = (
     <>
-      {/* Hover/focus: 220ms gold fill; exit: 140ms. Reduced motion is immediate. */}
-      <span aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 -translate-x-full bg-warm-gold transition-transform duration-140 ease-[cubic-bezier(0.2,0.65,0.3,1)] group-hover:translate-x-0 group-hover:duration-220 group-focus-visible:translate-x-0 motion-reduce:transition-none" />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10 -translate-x-full bg-warm-gold transition-transform duration-140 ease-[cubic-bezier(0.2,0.65,0.3,1)] group-hover:translate-x-0 group-hover:duration-220 group-focus-visible:translate-x-0 motion-reduce:transition-none"
+      />
       <span className="relative min-w-0 text-left">{children}</span>
       <span
         aria-hidden="true"
@@ -49,7 +51,17 @@ export function InquiryButton({
       </span>
     </>
   );
-  return href
-    ? <Link href={href} className={classes}>{content}</Link>
-    : <button type="button" onClick={() => openInquiry(context)} className={classes}>{content}</button>;
+  return href ? (
+    <Link href={href} className={classes}>
+      {content}
+    </Link>
+  ) : (
+    <button
+      type="button"
+      onClick={() => openInquiry(context)}
+      className={classes}
+    >
+      {content}
+    </button>
+  );
 }

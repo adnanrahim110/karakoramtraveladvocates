@@ -24,7 +24,7 @@ export function HomeSectionHeading({
     <h2
       id={id}
       className={cn(
-        "min-w-0 max-w-full break-words whitespace-normal text-wrap font-sans font-semibold uppercase leading-[1.05] tracking-[-0.04em]",
+        "min-w-0 max-w-full whitespace-normal text-wrap font-sans font-semibold leading-[0.9]! tracking-[-0.04em]",
         variants[variant],
         className,
       )}

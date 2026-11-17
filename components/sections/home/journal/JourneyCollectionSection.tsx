@@ -1,57 +1,68 @@
 import { HomeSectionHeading } from "@/components/ui/HomeSectionHeading";
-import { FieldLabel } from "@/components/ui/FieldLabel";
+import { InquiryButton } from "@/components/ui/InquiryButton";
 import { travelJourneys } from "@/lib/data/travel-content";
-import { TextLink } from "@/components/ui/TextLink";
-import type { JourneyPreview } from "@/lib/types/home";
-import { JourneyExplorer } from "./JourneyExplorer";
+import { JourneyCollectionDirectory } from "./JourneyCollectionDirectory";
+import { JourneyFeature } from "./JourneyFeature";
+
+const featuredSlugs = [
+  "k2-base-camp-trek",
+  "hunza-valley-private-journey",
+  "spantik-peak-expedition",
+];
 
 export function JourneyCollectionSection() {
-  const journeys: JourneyPreview[] = travelJourneys.map((journey) => ({
-    id: journey.slug,
-    href: journey.href,
-    slug: journey.slug,
-    region: journey.region,
-    title: journey.title,
-    serviceType: journey.kind,
-    durationDays: journey.durationDays,
-    maxAltitudeMeters: journey.maxAltitude,
-    grade: journey.difficulty,
-    season: journey.season,
-    summary: journey.summary,
-    highlights: journey.highlights.slice(0, 3),
-    image: journey.image,
-  }));
+  const featured = featuredSlugs.flatMap((slug) => {
+    const journey = travelJourneys.find((item) => item.slug === slug);
+    return journey ? [journey] : [];
+  });
+
   return (
     <section
       id="journeys"
       aria-labelledby="journeys-title"
-      className="bg-glacier-cream py-20 sm:py-28 lg:py-32"
+      className="border-t border-midnight-navy/10 bg-white py-16 text-midnight-navy sm:py-24 lg:py-28"
     >
-      <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-16">
-        <header className="mb-12 flex flex-col justify-between gap-8 lg:flex-row lg:items-end">
-          <div className="min-w-0 flex-1">
-            <FieldLabel>03 / The journey collection</FieldLabel>
-            <HomeSectionHeading
-              id="journeys-title"
-              className="mt-5 text-midnight-navy"
-            >
-              Find your{" "}
-              <span className="font-editorial font-normal lowercase italic">
-                elsewhere.
-              </span>
-            </HomeSectionHeading>
-          </div>
-          <p className="max-w-sm text-sm leading-7 text-slate-ink/80 lg:shrink-0">
-            A few of our favourite ways into the north. Explore the routes, then
-            shape the details with us.
+      <div className="mx-auto max-w-400 px-6 sm:px-10 lg:px-16">
+        <header className="mb-8 flex flex-col gap-4 sm:mb-10 lg:flex-row lg:items-end lg:justify-between lg:gap-12">
+          <HomeSectionHeading id="journeys-title" className="max-w-3xl">
+            Journeys through{" "}
+            <span className="block font-editorial font-normal lowercase italic text-alpine-teal">
+              northern Pakistan.
+            </span>
+          </HomeSectionHeading>
+          <p className="max-w-md text-sm leading-7 text-slate-ink/85 lg:pb-1">
+            Start with an itinerary that suits your pace, season and experience.
+            We’ll shape the details around how you want to travel.
           </p>
         </header>
-        <JourneyExplorer journeys={journeys} />
-        <nav aria-label="Explore all journey categories" className="mt-10 flex flex-wrap gap-x-10 gap-y-4 border-t border-midnight-navy/20 pt-6">
-          <TextLink href="/treks">All treks</TextLink>
-          <TextLink href="/tours">All private tours</TextLink>
-          <TextLink href="/expeditions">All expeditions</TextLink>
-        </nav>
+
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-12 xl:gap-8">
+          {featured.map((journey, index) => (
+            <JourneyFeature
+              key={journey.slug}
+              journey={journey}
+              variant={index === 0 ? "lead" : "companion"}
+              className={
+                index === 0
+                  ? "md:col-span-2 xl:col-span-7 xl:row-span-2"
+                  : "xl:col-span-5"
+              }
+            />
+          ))}
+        </div>
+
+        <div className="mt-8">
+          <JourneyCollectionDirectory journeys={travelJourneys} />
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+          <p className="text-xs leading-6 text-slate-ink/75">
+            Dates, costs and inclusions are confirmed in writing before you
+            book.
+          </p>
+          <InquiryButton variant="light" className="w-fit max-w-full">
+            Plan a custom trip
+          </InquiryButton>
+        </div>
       </div>
     </section>
   );

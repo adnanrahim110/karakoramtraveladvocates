@@ -28,8 +28,8 @@ export function LiquidGlassPeakBar({
   const [probe, setProbe] = useState(hoverTelemetry.get());
   useMotionValueEvent(hoverTelemetry, "change", setProbe);
   return (
-    <div className="relative z-20 mx-auto mt-auto mb-4 w-[calc(100%-2rem)] max-w-6xl shrink-0 rounded-lg border border-white/60 bg-white/65 shadow-lg shadow-midnight-navy/5 backdrop-blur-md">
-      <div className="flex min-h-8 w-full items-center justify-between gap-2 px-2 sm:px-3 [@media(pointer:coarse)]:min-h-11">
+    <div className="relative z-20 mx-auto mt-auto mb-3 w-[calc(100%-1rem)] max-w-6xl shrink-0 rounded-lg border border-white/60 bg-white/65 shadow-lg shadow-midnight-navy/5 backdrop-blur-md sm:mb-4 sm:w-[calc(100%-2rem)]">
+      <div className="flex min-h-8 w-full items-center justify-between gap-1 px-1 sm:gap-2 sm:px-3 [@media(pointer:coarse)]:min-h-11">
         <div className="hidden shrink-0 items-center gap-2 font-mono text-[9px] uppercase tracking-[0.08em] text-midnight-navy xl:flex">
           <Compass
             className="h-3 w-3 shrink-0 text-alpine-teal"
@@ -47,7 +47,11 @@ export function LiquidGlassPeakBar({
             {probe.altitude !== null ? probe.coordinates : activeLandmark.coordinates}
           </span>
         </div>
-        <div role="group" aria-label="Choose a mountain viewpoint" className="grid w-full min-w-0 grid-cols-3 gap-x-1 sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-1 [@media(pointer:coarse)]:gap-x-2">
+        <div
+          role="group"
+          aria-label="Choose a mountain viewpoint"
+          className="flex w-full min-w-0 flex-nowrap items-center justify-between gap-1 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:w-auto sm:justify-center sm:overflow-visible"
+        >
           {HERO_LANDMARKS.map((landmark) => (
             <PeakViewChip
               key={landmark.id}
@@ -62,9 +66,9 @@ export function LiquidGlassPeakBar({
             type="button"
             onClick={onResetView}
             aria-label="Reset 3D camera"
-            className="inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center gap-1 rounded-sm px-2 font-mono text-[9px] uppercase tracking-[0.08em] text-midnight-navy hover:bg-white/85 focus-visible:outline-2 focus-visible:outline-offset-[-2px] sm:min-h-8 sm:min-w-8 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11"
+            className="inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-center gap-1 rounded-sm px-1 font-mono text-[8px] uppercase tracking-[0.06em] text-midnight-navy hover:bg-white/85 focus-visible:outline-2 focus-visible:outline-offset-[-2px] min-[390px]:px-2 min-[390px]:text-[9px] sm:min-h-8 sm:min-w-8 sm:tracking-[0.08em] [@media(pointer:coarse)]:min-h-11"
           >
-            <RotateCcw className="h-3 w-3" aria-hidden="true" />
+            <RotateCcw className="h-3 w-3 shrink-0" aria-hidden="true" />
             <span>Reset</span>
           </button>
         </div>

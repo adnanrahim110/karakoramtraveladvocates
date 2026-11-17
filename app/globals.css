@@ -17,7 +17,7 @@
   }
 
   body {
-    @apply bg-glacier-cream text-slate-ink font-sans antialiased selection:bg-warm-gold selection:text-midnight-navy overflow-x-hidden;
+    @apply bg-glacier-cream text-slate-ink font-sans antialiased selection:bg-warm-gold selection:text-midnight-navy overflow-x-clip;
   }
 
   h1,

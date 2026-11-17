@@ -5,9 +5,8 @@ type ScrollMeasurementSource =
 
 interface ScrollEntry {
   element: HTMLElement;
-  update: (progress: number) => void;
-  mode: ScrollMeasurementSource;
-  offset: number;
+  measure: (rect: DOMRect) => number;
+  update: (value: number) => void;
   visible: boolean;
 }
 
@@ -61,6 +60,10 @@ export function scrollProgressForRect(
   return Math.min(1, Math.max(0, progress));
 }
 
+export function horizontalScrollOffset(stageTop: number, distance: number): number {
+  return Math.min(Math.max(0, distance), Math.max(0, -stageTop));
+}
+
 function flushScrollFrame() {
   pendingFrame = null;
   if (document.hidden) return;
@@ -68,20 +71,11 @@ function flushScrollFrame() {
   // participate. A scroll/resize event requests one frame, never an idle loop.
   const measurements = Array.from(entries)
     .filter((entry) => entry.visible)
-    .map((entry) => {
-      const rect = entry.element.getBoundingClientRect();
-      return {
-        entry,
-        progress: scrollProgressForRect(
-          rect.top,
-          rect.height,
-          window.innerHeight,
-          typeof entry.mode === "function" ? entry.mode() : entry.mode,
-          entry.offset,
-        ),
-      };
-    });
-  for (const { entry, progress } of measurements) entry.update(progress);
+    .map((entry) => ({
+      entry,
+      value: entry.measure(entry.element.getBoundingClientRect()),
+    }));
+  for (const { entry, value } of measurements) entry.update(value);
 }
 
 function requestScrollFrame() {
@@ -112,15 +106,12 @@ function setListening(shouldListen: boolean) {
   }
 }
 
-export function observeScrollProgress(
+function observeScrollValue(
   element: HTMLElement,
-  update: (progress: number) => void,
-  {
-    mode = "view",
-    offset = 0,
-  }: { mode?: ScrollMeasurementSource; offset?: number } = {},
+  measure: ScrollEntry["measure"],
+  update: ScrollEntry["update"],
 ) {
-  const entry: ScrollEntry = { element, update, mode, offset, visible: false };
+  const entry: ScrollEntry = { element, measure, update, visible: false };
   entries.add(entry);
   setListening(true);
   const intersection = new IntersectionObserver(([record]) => {
@@ -138,25 +129,29 @@ export function observeScrollProgress(
   };
 }
 
-export const SCROLL_EASING = "cubic-bezier(0.2, 0.65, 0.3, 1)";
-
-// Solve the same monotonic curve in reverse when keyboard focus must reveal a
-// horizontal panel. This keeps the focused action aligned with scroll position.
-export function scrollProgressForEasedFraction(fraction: number): number {
-  const target = Math.min(1, Math.max(0, fraction));
-  const bezier = (t: number, control1: number, control2: number) =>
-    3 * (1 - t) * (1 - t) * t * control1 +
-    3 * (1 - t) * t * t * control2 +
-    t * t * t;
-  let low = 0;
-  let high = 1;
-  for (let iteration = 0; iteration < 20; iteration++) {
-    const middle = (low + high) / 2;
-    if (bezier(middle, 0.65, 1) < target) low = middle;
-    else high = middle;
-  }
-  return bezier((low + high) / 2, 0.2, 0.3);
+export function observeScrollProgress(
+  element: HTMLElement,
+  update: (progress: number) => void,
+  { mode = "view", offset = 0 }: { mode?: ScrollMeasurementSource; offset?: number } = {},
+) {
+  return observeScrollValue(element, (rect) => scrollProgressForRect(
+    rect.top,
+    rect.height,
+    window.innerHeight,
+    typeof mode === "function" ? mode() : mode,
+    offset,
+  ), update);
 }
+
+export function observeHorizontalScroll(
+  element: HTMLElement,
+  getDistance: () => number,
+  update: (offset: number) => void,
+) {
+  return observeScrollValue(element, (rect) => horizontalScrollOffset(rect.top, getDistance()), update);
+}
+
+export const SCROLL_EASING = "cubic-bezier(0.2, 0.65, 0.3, 1)";
 
 export function createScrubAnimation(
   element: HTMLElement,

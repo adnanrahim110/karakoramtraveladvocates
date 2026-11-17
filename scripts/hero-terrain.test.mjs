@@ -19,7 +19,7 @@ import {
 const bytes = readFileSync(new URL("../public/imgs/terrain/k2-height-grid.bin", import.meta.url));
 const grid = new Float32Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
 
-test("floating peak cards render in an isolated HTML root with accessible names and units", async () => {
+test("floating peak chips render in an isolated HTML root with accessible names and units", async () => {
   // Exercise the same context-free root used by Drei Html without a browser.
   const source = readFileSync(new URL("../components/spatial/PeakViewChip.tsx", import.meta.url), "utf8");
   const compiled = ts.transpileModule(source, {
@@ -60,6 +60,12 @@ test("summer imagery retains a verified real RGB capture and the original terrai
     assert.ok(provenance.source_urls[i].includes(provenance.item_id));
     assert.ok(provenance.source_urls[i].endsWith(provenance.rgb_bands[i] + ".tif"));
   }
+  for (const assetName of [provenance.webp_file, "karakoram-summer-atmosphere.webp"]) {
+    const asset = readFileSync(new URL("../public/imgs/terrain/" + assetName, import.meta.url));
+    assert.ok(asset.byteLength > 1024, `${assetName} is non-empty`);
+    assert.equal(asset.subarray(0, 4).toString("ascii"), "RIFF", `${assetName} has RIFF header`);
+    assert.equal(asset.subarray(8, 12).toString("ascii"), "WEBP", `${assetName} is valid WebP`);
+  }
 });
 
 test("the independent summer layer never mutates the original winter material", () => {
@@ -69,22 +75,31 @@ test("the independent summer layer never mutates the original winter material", 
   const layers = createTerrainSeasonLayers({ winterMap, summerMap, normalMap, hazeStart: 24, hazeEnd: 160 });
   assert.equal(layers.winter.uniforms.uSeasonMap.value, winterMap);
   assert.equal(layers.summer.uniforms.uSeasonMap.value, summerMap);
+  assert.equal(layers.summerWorld.uniforms.uSeasonMap.value, summerMap);
   assert.equal(layers.winter.vertexShader, layers.summer.vertexShader, "both layers transform identical geometry identically");
+  assert.equal(layers.winter.vertexShader, layers.summerWorld.vertexShader, "summer world transforms identical geometry identically");
   assert.equal(layers.winter.transparent, false);
   assert.equal(layers.winter.depthWrite, true);
+  assert.equal(layers.summerWorld.transparent, false);
+  assert.equal(layers.summerWorld.depthWrite, true, "summer 3D world renders opaque into its dedicated scene target");
   assert.equal(layers.summer.transparent, true);
   assert.equal(layers.summer.depthWrite, false, "summer does not overwrite depth for the scene or pins");
   assert.equal(layers.summer.blending, NormalBlending);
   assert.equal(layers.summer.visible, false);
+  assert.equal(layers.summer.uniforms.uSummerSceneTexture.value, null);
+  assert.equal(layers.summer.uniforms.uPortalEnabled.value, 0);
+  assert.ok(layers.summer.uniforms.uViewportSize.value);
+  assert.ok(layers.summer.uniforms.uRevealRadius);
   const winterHaze = layers.winter.uniforms.uHazeColor.value.clone();
   layers.summer.uniforms.uRevealCenter.value.set(0.8, 2.4, -0.6);
   layers.summer.uniforms.uRevealStrength.value = 1;
   layers.summer.uniforms.uHazeColor.value.set("#000000");
+  layers.summerWorld.uniforms.uHazeColor.value.set("#112233");
   assert.equal(layers.winter.uniforms.uSeasonMap.value, winterMap);
   assert.ok(layers.winter.uniforms.uHazeColor.value.equals(winterHaze));
   assert.equal(layers.winter.uniforms.uRevealStrength, undefined);
   assert.equal(layers.winter.uniforms.uRevealCenter, undefined);
-  layers.winter.dispose(); layers.summer.dispose();
+  layers.winter.dispose(); layers.summer.dispose(); layers.summerWorld.dispose();
   winterMap.dispose(); summerMap.dispose(); normalMap.dispose();
 });
 
@@ -148,30 +163,32 @@ test("route guides remain above the rendered terrain at both production resoluti
   }
 });
 
-test("labels preserve their pin positions, prioritize selection, and hide points outside the view", () => {
+test("labels sit close to their pins, prioritize selection, and hide points outside the view", () => {
   const camera = new PerspectiveCamera(36, 1, 0.1, CAMERA_FAR);
   camera.position.set(0, 4, 16);
   camera.lookAt(0, 3, 0);
   camera.updateMatrixWorld();
   const anchors = [
-    { id: "neighbor", width: 176, position: [0, 3, 0] },
-    { id: "selected", width: 176, position: [0, 3, 0], priority: 1 },
-    { id: "behind", width: 176, position: [0, 3, 30] },
-    { id: "outside", width: 176, position: [80, 3, 0] },
+    { id: "neighbor", width: 144, height: 56, position: [0, 3, 0] },
+    { id: "selected", width: 72, height: 44, position: [0, 3, 0], priority: 1 },
+    { id: "behind", width: 88, height: 44, position: [0, 3, 30] },
+    { id: "outside", width: 120, height: 44, position: [80, 3, 0] },
   ];
   const placements = sceneLabelPositions(camera, { width: 900, height: 900 }, anchors);
   assert.ok(placements.selected.visible);
   assert.equal(placements.behind.visible, false);
   assert.equal(placements.outside.visible, false);
-  assert.deepEqual(placements.neighbor.pointPosition, placements.selected.pointPosition);
-  assert.ok(placements.selected.position[1] < placements.selected.pointPosition[1]);
-  assert.ok(Math.abs(placements.neighbor.position[1] - placements.selected.position[1]) >= 64);
+  const selected = placements.selected;
+  const gap = 450 - (selected.position[1] + selected.height / 2);
+  assert.ok(gap > 0 && gap <= 8, "the selected chip sits just above its centered pin");
+  assert.ok(placements.neighbor.visible);
+  assert.ok(Math.abs(placements.neighbor.position[1] - placements.selected.position[1]) >= (56 + 44) / 2 + 8);
 });
 
 test("visible peak chips stay inside the scene and do not collide during full rotation", () => {
   const anchors = [[0.417, 0.301], [0.581, 0.563], [0.817, 0.772], [0.403, 0.485], [0.4, 0.854]]
     .map(([u, v], index) => ({
-      id: String(index), width: 144,
+      id: String(index), width: [72, 120, 144, 144, 112][index], height: 44,
       position: [(u - 0.5) * MESH_SIZE, sampleGridHeight(grid, u, v) - 1.75 + 0.43, (v - 0.5) * MESH_SIZE],
     }));
   for (const [width, height] of [[320, 640], [768, 800], [1440, 900], [2480, 1080]]) {
@@ -194,7 +211,7 @@ test("visible peak chips stay inside the scene and do not collide during full ro
         for (let j = i + 1; j < visible.length; j++) {
           const a = visible[i], b = visible[j];
           assert.ok(Math.abs(a.position[0] - b.position[0]) >= (a.width + b.width) / 2 + 8
-            || Math.abs(a.position[1] - b.position[1]) >= 48, "pin touch targets do not overlap");
+            || Math.abs(a.position[1] - b.position[1]) >= (a.height + b.height) / 2, "pin touch targets do not overlap");
         }
       }
     }
@@ -280,4 +297,20 @@ test("both production resolutions contain valid elevation and reject damaged dat
   corrupt[20] = NaN;
   assert.throws(() => buildTerrainGeometry(corrupt, 24));
   assert.throws(() => buildTerrainGeometry(grid, 0));
+});
+
+test("hero 3D scene avoids secondary React roots inside the R3F reconciler", () => {
+  for (const file of [
+    "../components/spatial/HeroKarakoramScene3D.tsx",
+    "../components/spatial/FloatingPeakMarker.tsx",
+  ]) {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    assert.doesNotMatch(
+      source,
+      /import\s*{[^}]*\bHtml\b[^}]*}\s*from\s*["']@react-three\/drei["']/,
+      `${file} must not import Html from @react-three/drei`,
+    );
+    assert.doesNotMatch(source, /<Html[\s>]/, `${file} must not render <Html>`);
+    assert.doesNotMatch(source, /\bcreateRoot\b/, `${file} must not call createRoot`);
+  }
 });

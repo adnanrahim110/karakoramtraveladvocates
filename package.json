@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test scripts/inquiry-controls.test.mjs scripts/hero-terrain.test.mjs",
+    "test": "node --experimental-strip-types --test scripts/inquiry-controls.test.mjs scripts/hero-terrain.test.mjs scripts/scroll-runtime.test.mjs",
     "check:content": "node scripts/verify-site.mjs"
   },
   "dependencies": {

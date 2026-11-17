@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import {
-  useDesktopPointerPreference,
   useReducedMotionPreference,
   useViewportPinningPreference,
 } from "@/lib/motion/preferences";
@@ -12,13 +11,12 @@ import {
   observeScrollProgress,
   scrollContentFitsFrame,
   scrollMeasurementModeForFrame,
-  scrollProgressForEasedFraction,
 } from "@/lib/motion/scroll-runtime";
 
 export interface ScrollStageProps {
   children: ReactNode;
   className?: string;
-  mode?: "aperture" | "horizontal" | "depth";
+  mode?: "aperture" | "depth";
   offset?: number;
 }
 
@@ -30,20 +28,17 @@ export function ScrollStage({
 }: ScrollStageProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotionPreference();
-  const desktopPointer = useDesktopPointerPreference();
   const viewportPinning = useViewportPinningPreference();
   const [contentFits, setContentFits] = useState(false);
-  const canPin =
-    !reducedMotion &&
-    viewportPinning &&
-    (mode !== "horizontal" || desktopPointer);
+  const canPin = !reducedMotion && viewportPinning;
   const pinned = canPin && contentFits;
-  const enabled = !reducedMotion && (mode !== "horizontal" || pinned);
+  const enabled = !reducedMotion;
 
   useEffect(() => {
     const stage = stageRef.current;
     const frame = stage?.querySelector<HTMLElement>("[data-scroll-frame]");
     if (!canPin || !stage || !frame) return;
+    const surface = frame.querySelector<HTMLElement>("[data-scroll-expand]");
     let pendingMeasurement: number | null = null;
     let disposed = false;
     let failedEnvironmentKey: string | null = null;
@@ -66,20 +61,15 @@ export function ScrollStage({
           return `${computed.fontSize}:${computed.lineHeight}:${element.textContent}`;
         }),
       ].join("|");
-      // Do not alternate between natural and pinned layouts when revealing a
-      // pin-only instruction is the extra content that causes the overflow.
-      // Retry after viewport, typography or actual content changes.
+      // Stay in the natural layout until the viewport or content changes.
       if (environmentKey === failedEnvironmentKey) return;
       const bounds = frame.getBoundingClientRect();
       const contentBounds = content
         .map((element) => element.getBoundingClientRect())
         .filter((rect) => rect.height > 0);
-      const fits = scrollContentFitsFrame(
-        bounds,
-        contentBounds,
-        window.innerHeight,
-        offset,
-      );
+      // Measure the surface before scaling too, since the expanded state must fit.
+      const fits = (!surface || surface.scrollHeight <= frame.clientHeight + 1) &&
+        scrollContentFitsFrame(bounds, contentBounds, window.innerHeight, offset);
       if (!fits) failedEnvironmentKey = environmentKey;
       setContentFits(fits);
     };
@@ -110,8 +100,6 @@ export function ScrollStage({
     let previousProgress = 0;
     let previousLayoutKey = "";
     const frame = stage.querySelector<HTMLElement>("[data-scroll-frame]");
-    const track = stage.querySelector<HTMLElement>("[data-scroll-track]");
-    const viewport = stage.querySelector<HTMLElement>("[data-scroll-viewport]");
     const measurementMode = () =>
       pinned && frame
         ? scrollMeasurementModeForFrame(
@@ -126,17 +114,23 @@ export function ScrollStage({
         stage.clientWidth,
         stage.clientHeight,
         frame?.clientHeight,
-        track?.scrollWidth,
-        viewport?.clientWidth,
       ].join(":");
       if (layoutKey === previousLayoutKey) return;
       previousLayoutKey = layoutKey;
       for (const animation of animations) animation.cancel();
       animations = [];
-      // Trigger: travel through this sticky section. Entry/exit are reversible
-      // positions on a 1000ms scrubbed timeline using the explicit easing below.
-      // The content itself stays visible; only image frames and spatial context move.
+      // Scroll in either direction scrubs the same 1000ms timeline with
+      // SCROLL_EASING. The opening surface grows as one piece to full size.
       if (mode === "aperture") {
+        for (const surface of stage.querySelectorAll<HTMLElement>(
+          "[data-scroll-expand]",
+        ))
+          animations.push(
+            createScrubAnimation(surface, [
+              { transform: pinned ? "scale(0.8)" : "scale(0.92)" },
+              { transform: "scale(1)" },
+            ]),
+          );
         for (const frame of stage.querySelectorAll<HTMLElement>(
           "[data-scroll-aperture]",
         ))
@@ -155,7 +149,7 @@ export function ScrollStage({
               { transform: "scale(1.02)" },
             ]),
           );
-      } else if (mode === "depth") {
+      } else {
         for (const image of stage.querySelectorAll<HTMLElement>(
           "[data-scroll-image]",
         ))
@@ -165,19 +159,6 @@ export function ScrollStage({
               { transform: "translateY(80px) scale(1.02)" },
             ]),
           );
-      } else {
-        if (track && viewport) {
-          const distance = Math.max(
-            0,
-            track.scrollWidth - viewport.clientWidth,
-          );
-          animations.push(
-            createScrubAnimation(track, [
-              { transform: "translateX(0px)" },
-              { transform: `translateX(-${distance}px)` },
-            ]),
-          );
-        }
       }
       for (const bar of stage.querySelectorAll<HTMLElement>(
         "[data-scroll-progress]",
@@ -204,52 +185,9 @@ export function ScrollStage({
     const resize = new ResizeObserver(rebuild);
     resize.observe(stage);
     if (frame) resize.observe(frame);
-    if (track) resize.observe(track);
-    if (viewport) resize.observe(viewport);
-    const synchronizeFocusedPanel = (event: FocusEvent) => {
-      if (
-        mode !== "horizontal" ||
-        measurementMode() !== "sticky" ||
-        !(event.target instanceof HTMLElement)
-      )
-        return;
-      const panel = event.target.closest<HTMLElement>("[data-scroll-panel]");
-      if (!panel || !track || !viewport) return;
-      const focusRect = event.target.getBoundingClientRect();
-      const viewportRect = viewport.getBoundingClientRect();
-      if (
-        viewport.scrollLeft === 0 &&
-        focusRect.left >= viewportRect.left &&
-        focusRect.right <= viewportRect.right
-      )
-        return;
-      const distance = Math.max(0, track.scrollWidth - viewport.clientWidth);
-      if (!distance) return;
-      const panelOffset =
-        panel.getBoundingClientRect().left - track.getBoundingClientRect().left;
-      const progress = scrollProgressForEasedFraction(
-        Math.min(distance, Math.max(0, panelOffset)) / distance,
-      );
-      const stageRect = stage.getBoundingClientRect();
-      const travel = Math.max(
-        0,
-        stageRect.height - (window.innerHeight - offset),
-      );
-      viewport.scrollLeft = 0;
-      previousProgress = progress;
-      for (const animation of animations)
-        animation.currentTime = progress * 1000;
-      // Focus navigation is instantaneous; it must never wait for a scroll tween.
-      window.scrollTo({
-        top: window.scrollY + stageRect.top - offset + travel * progress,
-        behavior: "instant",
-      });
-    };
-    stage.addEventListener("focusin", synchronizeFocusedPanel);
     return () => {
       unsubscribe();
       resize.disconnect();
-      stage.removeEventListener("focusin", synchronizeFocusedPanel);
       for (const animation of animations) animation.cancel();
     };
   }, [enabled, pinned, mode, offset]);
@@ -261,8 +199,6 @@ export function ScrollStage({
       data-scroll-pinned={pinned ? "true" : "false"}
       className={cn(
         "group/scroll relative [&[data-scroll-pinned=false]]:h-auto! [&[data-scroll-pinned=false]]:min-h-0! [&[data-scroll-pinned=false]_[data-scroll-frame]]:static! [&[data-scroll-pinned=false]_[data-scroll-frame]]:h-auto! [&[data-scroll-pinned=false]_[data-scroll-frame]]:min-h-0!",
-        mode === "horizontal" &&
-          "[&[data-scroll-pinned=false]_[data-scroll-viewport]]:h-auto! [&[data-scroll-pinned=false]_[data-scroll-viewport]]:min-h-0! [&[data-scroll-pinned=false]_[data-scroll-viewport]]:overflow-x-auto! [&[data-scroll-pinned=false]_[data-scroll-track]]:h-auto! [&[data-scroll-pinned=false]_[data-scroll-panel]]:h-auto! [&[data-scroll-pinned=false]_[data-scroll-instruction]]:hidden [&[data-scroll-pinned=false]_[data-scroll-progress]]:hidden",
         className,
       )}
     >

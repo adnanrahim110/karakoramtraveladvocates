@@ -11,8 +11,10 @@ export function FooterLinkColumn({
 }) {
   return (
     <nav aria-label={label} className="min-w-0">
-      <p className="font-mono text-[10px] leading-5 tracking-[0.12em] uppercase text-warm-gold">{title}</p>
-      <ul className="mt-4 space-y-2">
+      <p className="font-mono text-[10px] font-medium uppercase leading-5 tracking-[0.14em] text-warm-gold">
+        {title}
+      </p>
+      <ul className="mt-3 space-y-1">
         {links.map((link) => (
           <li key={link.href}>
             <FooterNavLink href={link.href} label={link.label} />

@@ -1,45 +1,38 @@
 "use client";
 
-import { useCallback, useRef } from "react";
-import { Html, Line } from "@react-three/drei";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useCallback } from "react";
+import { Line } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
 import { type Camera } from "three";
 import { PeakViewChip } from "@/components/spatial/PeakViewChip";
 import { type UnitSystem } from "@/components/spatial/InteractiveContext";
 import { type PeakLandmark } from "@/lib/data/hero-landmarks";
 import { type SceneLabelPlacement } from "@/lib/hero-scene-interaction";
 
+export interface FloatingPeakLabelHandle {
+  update: (placement: SceneLabelPlacement) => void;
+}
+
 interface FloatingPeakMarkerProps {
   landmark: PeakLandmark;
   position: [number, number, number];
   isActive: boolean;
-  unit: UnitSystem;
-  onSelect: (landmark: PeakLandmark) => void;
   getPlacement: (camera: Camera, size: { width: number; height: number }) => SceneLabelPlacement;
+  onUpdatePlacement: (id: string, placement: SceneLabelPlacement) => void;
 }
 
-export function FloatingPeakMarker({ landmark, position, isActive, unit, onSelect, getPlacement }: FloatingPeakMarkerProps) {
-  const label = useRef<HTMLDivElement>(null);
-  const connector = useRef<SVGPathElement>(null);
-  const { invalidate } = useThree();
-  const attachLabel = useCallback((node: HTMLDivElement | null) => {
-    label.current = node;
-    // The separate HTML root can commit after the demand loop has settled,
-    // particularly with reduced motion. Place its tether as soon as it mounts.
-    if (node) invalidate();
-  }, [invalidate]);
+export function FloatingPeakMarker({
+  landmark,
+  position,
+  isActive,
+  getPlacement,
+  onUpdatePlacement,
+}: FloatingPeakMarkerProps) {
   const height = isActive ? 0.34 : 0.24;
   const color = isActive ? "#D4A04C" : "#F6F2E9";
 
   useFrame(({ camera, size }) => {
-    const placement = getPlacement(camera, size);
-    if (label.current) label.current.hidden = !placement.visible;
-    const x = placement.pointPosition[0] - placement.position[0];
-    const y = placement.pointPosition[1] - placement.position[1];
-    // Screen-space tether follows the actual pin even when its card shifts to
-    // avoid another card or the hero copy. It never pretends the point moved.
-    const side = y < 0 ? -1 : 1;
-    connector.current?.setAttribute("d", `M 0 ${side * 24} L 0 ${side * 32} L ${x} ${y}`);
+    onUpdatePlacement(landmark.id, getPlacement(camera, size));
   }, -0.25);
 
   return (
@@ -49,15 +42,117 @@ export function FloatingPeakMarker({ landmark, position, isActive, unit, onSelec
         <sphereGeometry args={[isActive ? 0.052 : 0.036, 12, 8]} />
         <meshBasicMaterial color={color} />
       </mesh>
-      <Html position={[0, height, 0]} center zIndexRange={[40, 30]} calculatePosition={(_, camera, size) => getPlacement(camera, size).position}>
-        <div ref={attachLabel}>
-          <svg aria-hidden="true" className="pointer-events-none absolute top-1/2 left-1/2 size-px overflow-visible">
-            <path ref={connector} fill="none" stroke={color} strokeWidth="1" strokeOpacity="0.7" />
-          </svg>
-          {/* Html renders a separate React root; pass units across that boundary. */}
-          <PeakViewChip variant="pin" landmark={landmark} isActive={isActive} onSelect={onSelect} unit={unit} />
-        </div>
-      </Html>
     </group>
+  );
+}
+
+interface FloatingPeakMarkerLabelProps {
+  landmark: PeakLandmark;
+  isActive: boolean;
+  unit: UnitSystem;
+  onSelect: (landmark: PeakLandmark) => void;
+  onMeasure: (id: string, width: number, height: number) => void;
+  registerHandle: (id: string, handle: FloatingPeakLabelHandle | null) => void;
+}
+
+export function FloatingPeakMarkerLabel({
+  landmark,
+  isActive,
+  unit,
+  onSelect,
+  onMeasure,
+  registerHandle,
+}: FloatingPeakMarkerLabelProps) {
+  const attachWrapper = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (!node) return;
+
+      let placed = false;
+      let lastX: number | null = null;
+      let lastY: number | null = null;
+      node.classList.add("invisible");
+
+      const animation =
+        typeof node.animate === "function"
+          ? node.animate(
+              [
+                { transform: "translate3d(0px, 0px, 0)" },
+                { transform: "translate3d(0px, 0px, 0)" },
+              ],
+              { duration: 1, fill: "both" },
+            )
+          : null;
+      if (animation) {
+        animation.pause();
+        animation.currentTime = 0;
+      }
+
+      registerHandle(landmark.id, {
+        update(placement) {
+          if (!placed) {
+            placed = true;
+            node.classList.remove("invisible");
+          }
+          node.hidden = !placement.visible;
+          if (!placement.visible) return;
+          const [x, y] = placement.position;
+          if (
+            lastX !== null &&
+            lastY !== null &&
+            Math.abs(x - lastX) <= 0.01 &&
+            Math.abs(y - lastY) <= 0.01
+          ) {
+            return;
+          }
+          lastX = x;
+          lastY = y;
+          if (animation?.effect instanceof KeyframeEffect) {
+            const transform = `translate3d(${x}px, ${y}px, 0)`;
+            animation.effect.setKeyframes([{ transform }, { transform }]);
+          }
+        },
+      });
+
+      return () => {
+        registerHandle(landmark.id, null);
+        animation?.cancel();
+      };
+    },
+    [landmark.id, registerHandle],
+  );
+
+  const attachLabel = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (!node) return;
+
+      const measure = () => {
+        const { offsetWidth, offsetHeight } = node;
+        if (offsetWidth && offsetHeight) onMeasure(landmark.id, offsetWidth, offsetHeight);
+      };
+      measure();
+      const observer = new ResizeObserver(measure);
+      observer.observe(node);
+      return () => {
+        observer.disconnect();
+      };
+    },
+    [landmark.id, onMeasure],
+  );
+
+  return (
+    <div
+      ref={attachWrapper}
+      className="pointer-events-auto absolute top-0 left-0 z-30 origin-top-left"
+    >
+      <div ref={attachLabel} className="flex -translate-x-1/2 -translate-y-1/2">
+        <PeakViewChip
+          variant="pin"
+          landmark={landmark}
+          isActive={isActive}
+          onSelect={onSelect}
+          unit={unit}
+        />
+      </div>
+    </div>
   );
 }

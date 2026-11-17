@@ -3,12 +3,11 @@
 import { Pause, Play } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useReducedMotionPreference } from "@/lib/motion/preferences";
-import { HomeSectionHeading } from "@/components/ui/HomeSectionHeading";
 
 interface FilmAsset {
-  src: string;
-  poster: string;
-  description: string;
+  readonly src: string;
+  readonly poster: string;
+  readonly description: string;
 }
 
 export function LandscapeFilm({ film }: { film: FilmAsset }) {
@@ -56,22 +55,26 @@ export function LandscapeFilm({ film }: { film: FilmAsset }) {
           !saveData &&
           !manuallyPaused.current &&
           !document.hidden
-        )
+        ) {
           void play();
-        else videoRef.current?.pause();
+        } else {
+          videoRef.current?.pause();
+        }
       },
       { threshold: 0.25 },
     );
     observer.observe(containerRef.current);
     const onVisibility = () => {
-      if (document.hidden) videoRef.current?.pause();
-      else if (
+      if (document.hidden) {
+        videoRef.current?.pause();
+      } else if (
         visible.current &&
         reducedMotion === false &&
         !saveData &&
         !manuallyPaused.current
-      )
+      ) {
         void play();
+      }
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
@@ -84,7 +87,8 @@ export function LandscapeFilm({ film }: { film: FilmAsset }) {
   return (
     <div
       ref={containerRef}
-      className="relative isolate overflow-hidden bg-midnight-navy"
+      data-scroll-expand
+      className="relative isolate flex min-h-140 flex-col justify-end overflow-clip bg-midnight-navy sm:min-h-160 lg:h-full"
     >
       <video
         data-scroll-image
@@ -102,22 +106,19 @@ export function LandscapeFilm({ film }: { film: FilmAsset }) {
           setFailed(true);
           setIsPlaying(false);
         }}
-        className="absolute -inset-y-24 inset-x-0 h-[calc(100%+192px)] w-full object-cover"
+        className="absolute inset-0 -z-10 h-full w-full object-cover"
       >
         Your browser does not support this landscape film.
       </video>
-      <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-midnight-navy/60 via-transparent to-midnight-navy/10" />
-      <div className="relative mx-auto flex min-h-[560px] max-w-[1600px] flex-wrap items-end justify-between gap-8 p-6 sm:min-h-[640px] sm:p-10 lg:min-h-[calc(100svh-88px)] lg:px-16 lg:py-12">
-        <HomeSectionHeading
-          id="film-title"
-          variant="feature"
-          className="max-w-4xl text-glacier-cream"
-        >
-          Feel the{" "}
-          <span className="font-editorial font-normal lowercase italic text-warm-gold">
-            scale.
-          </span>
-        </HomeSectionHeading>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10 bg-linear-to-t from-midnight-navy/80 via-midnight-navy/15 to-transparent"
+      />
+      <div className="mx-auto flex w-full max-w-400 flex-wrap items-end justify-between gap-6 p-6 sm:p-10 lg:px-16 lg:py-12">
+        <p className="max-w-xl font-editorial text-xl italic leading-snug text-glacier-cream sm:text-2xl lg:text-3xl">
+          High above the Hunza and Nagar valleys, where the weather writes its
+          own itinerary.
+        </p>
         <div>
           <button
             type="button"
@@ -133,7 +134,7 @@ export function LandscapeFilm({ film }: { film: FilmAsset }) {
                 void play();
               }
             }}
-            className="inline-flex min-h-12 min-w-12 cursor-pointer items-center gap-3 border border-glacier-cream/70 bg-midnight-navy/40 px-4 py-3 text-xs text-glacier-cream hover:bg-midnight-navy focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-glacier-cream"
+            className="inline-flex min-h-12 min-w-12 cursor-pointer items-center gap-3 border border-glacier-cream/65 bg-midnight-navy/45 px-5 py-3 text-xs font-medium tracking-[0.08em] text-glacier-cream backdrop-blur-xs transition-colors duration-150 hover:border-warm-gold hover:bg-midnight-navy/80 hover:text-warm-gold focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-warm-gold motion-reduce:transition-none"
           >
             {isPlaying ? (
               <Pause className="h-4 w-4" aria-hidden="true" />

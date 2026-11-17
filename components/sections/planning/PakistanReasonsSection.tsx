@@ -2,11 +2,83 @@ import Image from "next/image";
 import { HOME_MEDIA } from "@/lib/data/home-media";
 
 const reasons = [
-  { number: "01", title: "Mountains that change your sense of scale.", text: "The Karakoram brings glacier valleys, granite towers and the skyline of K2 into one mountain region. You can explore its edges on a valley journey or commit to the time and preparation of a remote trek." },
-  { number: "02", title: "Culture is part of the landscape.", text: "Forts, irrigation channels, orchard terraces and village paths carry the history of the valleys. Leave room to listen, ask questions and understand the places between the famous viewpoints." },
-  { number: "03", title: "More than one way to go north.", text: "A private cultural trip, a short meadow trek and a glacier expedition ask for different levels of effort. The best journey is the one that matches your interests, experience and time." },
+  {
+    number: "01",
+    title: "Mountains that change your sense of scale.",
+    text: "The Karakoram brings glacier valleys, granite towers and the skyline of K2 into one mountain region. You can explore its edges on a valley journey or commit to the time and preparation of a remote trek.",
+  },
+  {
+    number: "02",
+    title: "Culture is part of the landscape.",
+    text: "Forts, irrigation channels, orchard terraces and village paths carry the history of the valleys. Leave room to listen, ask questions and understand the places between the famous viewpoints.",
+  },
+  {
+    number: "03",
+    title: "More than one way to go north.",
+    text: "A private cultural trip, a short meadow trek and a glacier expedition ask for different levels of effort. The best journey is the one that matches your interests, experience and time.",
+  },
 ];
 
 export function PakistanReasonsSection() {
-  return <section aria-labelledby="pakistan-reasons-title" className="mx-auto w-full max-w-360 px-6 pb-20 pt-12 sm:px-10 lg:px-16 lg:pb-28"><div className="grid gap-12 lg:grid-cols-12 lg:gap-16"><figure className="lg:col-span-5"><div className="relative aspect-[4/5] overflow-hidden"><Image src={HOME_MEDIA.intro.src} alt={HOME_MEDIA.intro.alt} fill sizes="(min-width: 1024px) 40vw, 100vw" preload className="object-cover" /></div><figcaption className="mt-3 text-xs leading-6 text-slate-ink/70">{HOME_MEDIA.intro.credit} · <a href={HOME_MEDIA.intro.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">{HOME_MEDIA.intro.license}</a></figcaption></figure><div className="lg:col-span-6 lg:col-start-7"><h2 id="pakistan-reasons-title" className="font-editorial text-4xl font-normal leading-tight text-midnight-navy sm:text-5xl">Come for the mountains.<br /><em>Stay curious about everything else.</em></h2><div className="mt-10 space-y-8">{reasons.map((reason) => <article key={reason.number} className="border-t border-midnight-navy/25 pt-6"><p className="font-mono text-xs text-alpine-teal">{reason.number}</p><h3 className="mt-3 font-editorial text-2xl font-normal leading-snug text-midnight-navy">{reason.title}</h3><p className="mt-4 text-sm leading-7 text-slate-ink/85">{reason.text}</p></article>)}</div></div></div></section>;
+  return (
+    <section
+      aria-labelledby="pakistan-reasons-title"
+      className="mx-auto w-full max-w-400 px-6 pb-20 pt-14 sm:px-10 sm:pt-16 lg:px-16 lg:pb-28"
+    >
+      <div className="grid items-start gap-12 lg:grid-cols-12 lg:gap-16">
+        <figure className="lg:sticky lg:top-28 lg:col-span-5">
+          <div className="relative aspect-[4/5] overflow-hidden bg-midnight-navy">
+            <Image
+              src={HOME_MEDIA.intro.src}
+              alt={HOME_MEDIA.intro.alt}
+              fill
+              sizes="(min-width: 1024px) 40vw, 100vw"
+              preload
+              className="object-cover"
+            />
+          </div>
+          <figcaption className="mt-3 text-xs leading-6 text-slate-ink/70">
+            {HOME_MEDIA.intro.credit} ·{" "}
+            <a
+              href={HOME_MEDIA.intro.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-11 items-center underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              {HOME_MEDIA.intro.license}
+            </a>
+          </figcaption>
+        </figure>
+
+        <div className="lg:col-span-6 lg:col-start-7">
+          <h2
+            id="pakistan-reasons-title"
+            className="font-editorial text-4xl font-normal leading-tight text-midnight-navy sm:text-5xl"
+          >
+            Come for the mountains.
+            <br />
+            <em>Stay curious about everything else.</em>
+          </h2>
+          <div className="mt-10 space-y-8">
+            {reasons.map((reason) => (
+              <article
+                key={reason.number}
+                className="border-t border-midnight-navy/25 pt-6"
+              >
+                <p className="font-mono text-xs text-alpine-teal">
+                  {reason.number}
+                </p>
+                <h3 className="mt-3 font-editorial text-2xl font-normal leading-snug text-midnight-navy">
+                  {reason.title}
+                </h3>
+                <p className="mt-4 text-sm leading-7 text-slate-ink/85">
+                  {reason.text}
+                </p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }

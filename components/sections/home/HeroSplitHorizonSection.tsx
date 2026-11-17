@@ -61,7 +61,7 @@ export function HeroSplitHorizonSection() {
     <section
       ref={sectionRef}
       aria-label="Interactive 3D Karakoram Mountain Range Hero"
-      className="relative flex h-screen min-h-160 w-full flex-col justify-between overflow-hidden border-b border-midnight-navy/15 bg-linear-to-b from-[#A8CAE2] via-[#D2E4F0] to-[#EAEFF2]"
+      className="relative flex h-svh min-h-140 w-full flex-col justify-between overflow-hidden border-b border-midnight-navy/15 bg-linear-to-b from-[#A8CAE2] via-[#D2E4F0] to-[#EAEFF2] sm:min-h-160 lg:h-screen"
     >
       <div className="absolute inset-0 z-0 h-full w-full">
         <HeroKarakoramScene3D
@@ -75,30 +75,37 @@ export function HeroSplitHorizonSection() {
 
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 z-10 h-[24%] bg-linear-to-b from-[#EEF6FB]/58 via-[#E4EFF8]/24 to-transparent"
+        className="pointer-events-none absolute inset-x-0 top-0 z-10 h-60 bg-linear-to-b from-[#EEF6FB]/75 via-[#E4EFF8]/35 to-transparent sm:h-[28%] sm:from-[#EEF6FB]/58 sm:via-[#E4EFF8]/24 lg:h-[24%]"
       />
 
-      <div className="pointer-events-none relative z-20 mx-auto w-full max-w-360 px-4 pt-21 sm:px-8 sm:pt-28">
+      <div className="pointer-events-none relative z-20 mx-auto w-full max-w-360 px-4 pt-18 sm:px-8 sm:pt-28">
         <div className="mx-auto flex max-w-5xl flex-col items-center text-center">
-          <div className="inline-flex items-center gap-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.22em] text-alpine-teal">
-            <span className="h-1.5 w-1.5 bg-warm-gold" />
-            <span>GILGIT-BALTISTAN • KARAKORAM • HIMALAYA • HINDU KUSH</span>
+          <div className="inline-flex max-w-full items-center justify-center gap-2 font-mono text-[8px] font-semibold uppercase leading-snug tracking-widest text-alpine-teal min-[400px]:text-[9px] min-[400px]:tracking-[0.14em] sm:tracking-[0.22em]">
+            <span className="hidden size-1 shrink-0 bg-warm-gold min-[360px]:inline-block sm:size-2" />
+            <span className="text-balance">
+              GILGIT-BALTISTAN • KARAKORAM • HIMALAYA • HINDU KUSH
+            </span>
           </div>
 
-          <h1 className="mt-1.5 font-display text-2xl font-semibold leading-[1.08] tracking-tight text-midnight-navy sm:text-3xl lg:text-[38px]">
+          <h1 className="mt-1 text-balance font-display text-xl font-semibold leading-[1.08] tracking-tight text-midnight-navy min-[380px]:text-2xl sm:mt-2 sm:text-3xl lg:text-[38px]">
             Find Your Next Mountain Journey
           </h1>
 
-          <p className="mt-1.5 max-w-lg text-[11px] leading-relaxed text-midnight-navy/80 sm:text-xs">
+          <p className="mt-1 max-w-md text-pretty text-[11px] leading-snug text-midnight-navy/80 sm:mt-2 sm:max-w-lg sm:text-xs sm:leading-relaxed">
             Private cultural journeys, guided Baltoro glacier treks, and
             mountaineering objectives shaped around your experience.
           </p>
 
-          <div className="pointer-events-auto mt-3.5 flex items-center justify-center gap-2.5">
-            <Button variant="secondary" size="sm" href="#journeys">
+          <div className="pointer-events-auto mt-3 flex w-full max-w-md flex-wrap items-center justify-center gap-2 sm:mt-4 sm:w-auto sm:max-w-none sm:gap-3">
+            <Button
+              variant="secondary"
+              size="sm"
+              href="#journeys"
+              className="whitespace-nowrap max-lg:min-h-10 px-3 text-[10px] tracking-[0.12em] min-[380px]:px-4 min-[380px]:text-[11px] sm:tracking-[0.16em]"
+            >
               <span>Explore Journeys</span>
               <ArrowUpRight
-                className="h-3 w-3 text-warm-gold"
+                className="h-3 w-3 shrink-0 text-warm-gold"
                 aria-hidden="true"
               />
             </Button>
@@ -107,7 +114,7 @@ export function HeroSplitHorizonSection() {
               variant="outline"
               size="sm"
               onClick={() => openInquiry()}
-              className="bg-glacier-cream/85 backdrop-blur-xs"
+              className="whitespace-nowrap max-lg:min-h-10 bg-glacier-cream/85 px-3 text-[10px] tracking-[0.12em] backdrop-blur-xs min-[380px]:px-4 min-[380px]:text-[11px] sm:tracking-[0.16em]"
             >
               <span>Tailor a Trip</span>
             </Button>

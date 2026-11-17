@@ -6,8 +6,9 @@ import { planningArticles } from "@/lib/data/planning-content";
 const TITLES: Record<string, string> = {
   "best-time-to-visit": "THE NORTH, IN EVERY COLOUR.",
   "visas-and-permits": "BEFORE YOU CROSS THE BORDER.",
-  "packing": "LESS WEIGHT. MORE POSSIBILITY.",
+  packing: "LESS WEIGHT. MORE POSSIBILITY.",
 };
+
 export function FieldNotesSection() {
   const notes = ["best-time-to-visit", "visas-and-permits", "packing"].flatMap(
     (slug) => {
@@ -15,13 +16,14 @@ export function FieldNotesSection() {
       return article ? [article] : [];
     },
   );
+
   return (
     <section
       id="field-notes"
       aria-labelledby="field-notes-title"
       className="bg-[#e9e4d8] py-20 sm:py-28"
     >
-      <div className="mx-auto max-w-[1440px] px-6 sm:px-10 lg:px-16">
+      <div className="mx-auto max-w-400 px-6 sm:px-10 lg:px-16">
         <header className="border-b border-midnight-navy/25 pb-10">
           <div className="flex flex-wrap items-center justify-between gap-6">
             <FieldLabel>08 / The Karakoram dispatch</FieldLabel>
@@ -39,14 +41,14 @@ export function FieldNotesSection() {
             </span>
           </HomeSectionHeading>
         </header>
-        <div className="mt-10 grid gap-10 lg:grid-cols-3 lg:gap-8">
-          {notes.map((article, index) => (
+
+        <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:gap-8">
+          {notes.map((article) => (
             <FieldNote
               key={article.slug}
               article={article}
               title={TITLES[article.slug] ?? article.title}
               summary={article.summary}
-              variant={index === 0 ? "feature" : "compact"}
             />
           ))}
         </div>

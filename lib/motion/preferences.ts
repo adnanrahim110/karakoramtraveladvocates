@@ -5,7 +5,7 @@ import { useSyncExternalStore } from "react";
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const FINE_POINTER_QUERY = "(hover: hover) and (pointer: fine)";
 const DESKTOP_POINTER_QUERY =
-  "(min-width: 1024px) and (min-height: 760px) and (hover: hover) and (pointer: fine)";
+  "(min-width: 1024px) and (hover: hover) and (pointer: fine)";
 const VIEWPORT_PINNING_QUERY = "(min-width: 1024px) and (min-height: 760px)";
 
 function subscribeQuery(query: string, listener: () => void) {

@@ -9,8 +9,8 @@ export const HORIZON_RADIUS = 384;
 export const HAZE_START = 24;
 export const HAZE_END = 160;
 export const CAMERA_FAR = 220;
-export const MAX_TARGET_RADIUS = 8;
-export const MAX_ORBIT_DISTANCE = 21;
+export const MAX_TARGET_RADIUS = 12.5;
+export const MAX_ORBIT_DISTANCE = 23;
 
 const HALF_SIZE = MESH_SIZE / 2;
 // Closely spaced rings join the real DEM without a skirt, wall or separate tile.

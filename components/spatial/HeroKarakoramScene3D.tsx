@@ -15,16 +15,20 @@ import {
   useLoader,
   useThree,
 } from "@react-three/fiber";
-import { Bvh, OrbitControls, Html, useTexture } from "@react-three/drei";
+import { Bvh, OrbitControls, useTexture } from "@react-three/drei";
 import Image from "next/image";
 import { type MotionValue } from "motion/react";
 import * as THREE from "three";
-import { FloatingPeakMarker } from "@/components/spatial/FloatingPeakMarker";
+import {
+  FloatingPeakMarker,
+  FloatingPeakMarkerLabel,
+  type FloatingPeakLabelHandle,
+} from "@/components/spatial/FloatingPeakMarker";
 import { TerrainRoute3D } from "@/components/spatial/TerrainRoute3D";
-import { useInteractive, type UnitSystem } from "@/components/spatial/InteractiveContext";
+import { useInteractive } from "@/components/spatial/InteractiveContext";
 import { cn } from "@/lib/utils";
 import { useReducedMotionPreference } from "@/lib/motion/preferences";
-import { scenePointerPosition, sceneRevealRadius, sceneLabelPositions, type SceneLabelAnchor, type SceneLabelPlacement } from "@/lib/hero-scene-interaction";
+import { scenePointerPosition, sceneRevealRadius, sceneLabelPositions, type SceneLabelAnchor, type SceneLabelPlacement, type SceneLabelSize } from "@/lib/hero-scene-interaction";
 import { createTerrainSeasonLayers } from "@/lib/hero-terrain-materials";
 import { heroSummerImagery } from "@/lib/data/hero-terrain-imagery";
 import { HERO_TERRAIN_ROUTES } from "@/lib/data/hero-routes";
@@ -53,6 +57,7 @@ const SCENE_TEXTURES = [
   "/imgs/terrain/k2-normal-detail.webp",
   "/imgs/terrain/karakoram-atmosphere.webp",
   heroSummerImagery.src,
+  "/imgs/terrain/karakoram-summer-atmosphere.webp",
 ];
 
 type ScrollProgress = number | MotionValue<number>;
@@ -103,26 +108,28 @@ function BakedAtmosphere({ texture }: { texture: THREE.Texture }) {
 
 interface MountainWorldProps {
   activeLandmark: PeakLandmark;
-  onSelectLandmark: (landmark: PeakLandmark) => void;
   onHoverElevation: (altMeters: number | null, coords: string | null) => void;
   scrollProgress: ScrollProgress;
   resetTrigger: number;
   compact: boolean;
   reducedMotion: boolean;
-  unit: UnitSystem;
+  labelSizes: React.RefObject<Record<string, SceneLabelSize>>;
+  onUpdatePlacement: (id: string, placement: SceneLabelPlacement) => void;
+  onSceneReady: (ready: boolean, invalidate: (() => void) | null) => void;
 }
 
 function RealKarakoramDEMWorld({
   activeLandmark,
-  onSelectLandmark,
   onHoverElevation,
   scrollProgress,
   resetTrigger,
   compact,
   reducedMotion,
-  unit,
+  labelSizes,
+  onUpdatePlacement,
+  onSceneReady,
 }: MountainWorldProps) {
-  const { gl, invalidate, size } = useThree();
+  const { gl, invalidate } = useThree();
   const controls = useRef<React.ComponentRef<typeof OrbitControls>>(null);
   const summerMesh = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>>(null);
   const winterMesh = useRef<THREE.Mesh>(null);
@@ -140,6 +147,13 @@ function RealKarakoramDEMWorld({
   const desiredCamera = useRef(new THREE.Vector3());
   const desiredTarget = useRef(new THREE.Vector3());
   const labelPlacements = useRef<Record<string, SceneLabelPlacement>>({});
+  const drawingBufferSize = useRef(new THREE.Vector2(1, 1));
+
+  useEffect(() => {
+    onSceneReady(true, invalidate);
+    invalidate();
+    return () => onSceneReady(false, null);
+  }, [invalidate, onSceneReady]);
 
   const heightBuffer = useLoader(THREE.FileLoader, HEIGHT_GRID_URL, (loader) =>
     loader.setResponseType("arraybuffer"),
@@ -152,11 +166,12 @@ function RealKarakoramDEMWorld({
       const anisotropy = Math.min(4, gl.capabilities.getMaxAnisotropy());
       for (let index = 0; index < maps.length; index++) {
         const texture = maps[index];
+        const isSky = index === 2 || index === 4;
         texture.colorSpace =
           index === 1 ? THREE.NoColorSpace : THREE.SRGBColorSpace;
-        texture.anisotropy = index === 2 ? 1 : anisotropy;
-        texture.wrapS = index === 2 ? THREE.RepeatWrapping : THREE.MirroredRepeatWrapping;
-        texture.wrapT = index === 2 ? THREE.ClampToEdgeWrapping : THREE.MirroredRepeatWrapping;
+        texture.anisotropy = isSky ? 1 : anisotropy;
+        texture.wrapS = isSky ? THREE.RepeatWrapping : THREE.MirroredRepeatWrapping;
+        texture.wrapT = isSky ? THREE.ClampToEdgeWrapping : THREE.MirroredRepeatWrapping;
         texture.minFilter = THREE.LinearMipmapLinearFilter;
         texture.magFilter = THREE.LinearFilter;
         texture.needsUpdate = true;
@@ -164,7 +179,7 @@ function RealKarakoramDEMWorld({
     },
     [gl],
   );
-  const [albedo, normals, atmosphere, summer] = useTexture(
+  const [albedo, normals, atmosphere, summer, summerAtmosphere] = useTexture(
     SCENE_TEXTURES,
     configureTextures,
   );
@@ -173,16 +188,20 @@ function RealKarakoramDEMWorld({
     () => buildTerrain(heightBuffer, segments),
     [heightBuffer, segments],
   );
-  const labelAnchors = useMemo<SceneLabelAnchor[]>(() => HERO_LANDMARKS.map((landmark) => {
+  const labelAnchors = useMemo<Omit<SceneLabelAnchor, keyof SceneLabelSize>[]>(() => HERO_LANDMARKS.map((landmark) => {
     const point = landmarkPositions[landmark.id] ?? landmark.worldPos;
     const selected = landmark.id === activeLandmark.id;
     return {
       id: landmark.id,
       position: [point[0], point[1] + SCENE_Y_OFFSET + (selected ? 0.34 : 0.24), point[2]],
-      width: size.width < 640 ? 160 : 176,
       priority: selected ? 1 : 0,
     };
-  }), [landmarkPositions, activeLandmark.id, size.width]);
+  }), [landmarkPositions, activeLandmark.id]);
+  const calculateLabelPositions = (camera: THREE.Camera, size: SceneLabelSize) =>
+    sceneLabelPositions(camera, size, labelAnchors.map((anchor) => ({
+      ...anchor,
+      ...(labelSizes.current[anchor.id] ?? { width: 144, height: 44 }),
+    })));
   const seasonLayers = useMemo(
     () => createTerrainSeasonLayers({
       winterMap: albedo,
@@ -191,14 +210,55 @@ function RealKarakoramDEMWorld({
       hazeStart: HAZE_START,
       hazeEnd: HAZE_END,
     }),
-    [albedo, normals, summer],
+    [albedo, summer, normals],
   );
+
+  // Separate real 3D Summer Scene rendered live with the synced camera into an offscreen target.
+  const summerPortal = useMemo(() => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color("#D8E4EE");
+
+    const skyGeometry = new THREE.SphereGeometry(62, 32, 16);
+    const skyMaterial = new THREE.MeshBasicMaterial({
+      map: summerAtmosphere,
+      side: THREE.BackSide,
+      depthWrite: false,
+      toneMapped: false,
+      fog: false,
+    });
+    const skyMesh = new THREE.Mesh(skyGeometry, skyMaterial);
+    skyMesh.frustumCulled = false;
+    skyMesh.renderOrder = -10;
+    scene.add(skyMesh);
+
+    const terrainGroup = new THREE.Group();
+    terrainGroup.position.set(0, SCENE_Y_OFFSET, 0);
+    terrainGroup.add(new THREE.Mesh(geometry, seasonLayers.summerWorld));
+    scene.add(terrainGroup);
+
+    const renderTarget = new THREE.WebGLRenderTarget(1, 1, {
+      depthBuffer: true,
+      stencilBuffer: false,
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      type: THREE.UnsignedByteType,
+      colorSpace: THREE.LinearSRGBColorSpace,
+    });
+
+    return { scene, skyMesh, skyGeometry, skyMaterial, renderTarget };
+  }, [geometry, seasonLayers, summerAtmosphere]);
 
   useEffect(() => () => geometry.dispose(), [geometry]);
   useEffect(() => () => {
     seasonLayers.winter.dispose();
     seasonLayers.summer.dispose();
+    seasonLayers.summerWorld.dispose();
   }, [seasonLayers]);
+  useEffect(() => () => {
+    summerPortal.skyGeometry.dispose();
+    summerPortal.skyMaterial.dispose();
+    summerPortal.renderTarget.dispose();
+  }, [summerPortal]);
 
   useEffect(() => {
     const element = gl.domElement.closest<HTMLElement>("[data-hero-scene]") ?? gl.domElement;
@@ -284,6 +344,16 @@ function RealKarakoramDEMWorld({
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.05);
     let needsFrame = false;
+    const aspect = state.size.width / Math.max(1, state.size.height);
+    const portraitFactor = THREE.MathUtils.clamp(1 - aspect, 0, 0.55);
+    if (state.camera instanceof THREE.PerspectiveCamera) {
+      const targetFov = 36 + portraitFactor * 24;
+      if (Math.abs(state.camera.fov - targetFov) > 0.05) {
+        state.camera.fov = targetFov;
+        state.camera.updateProjectionMatrix();
+        needsFrame = true;
+      }
+    }
     const orbit = controls.current;
     if (!userControlled.current && orbit) {
       const progress =
@@ -294,18 +364,24 @@ function RealKarakoramDEMWorld({
         landmarkPositions[activeLandmark.id] ?? activeLandmark.worldPos;
       const mouseX = reducedMotion || compact ? 0 : pointer.current.x * 0.55;
       const mouseY = reducedMotion || compact ? 0 : -pointer.current.y * 0.08;
+      const portraitBlend = portraitFactor / 0.55;
+      const pinWorldY = position[1] + SCENE_Y_OFFSET + 0.34;
+      const camX = THREE.MathUtils.lerp(
+        activeLandmark.camOffset[0],
+        THREE.MathUtils.clamp(position[0] * 0.85, -8.5, 8.8),
+        portraitBlend * 0.5,
+      );
+      desiredTarget.current.set(
+        position[0],
+        pinWorldY,
+        position[2],
+      );
       desiredCamera.current.set(
-        activeLandmark.camOffset[0] + mouseX,
+        camX + mouseX,
         Math.max(1.8, activeLandmark.camOffset[1] + mouseY),
         activeLandmark.camOffset[2] - (reducedMotion ? 0 : progress * 2.4),
       );
-      desiredTarget.current.set(
-        position[0] * 0.45 + mouseX * 0.18,
-        3.18,
-        position[2] * 0.45,
-      );
-      // Respect the controls' horizon limit before comparing convergence. Without
-      // this, the low Base Camp camera can chase an unreachable goal forever.
+      // Respect the controls' horizon, ground, and distance limits before comparing convergence.
       const horizontalDistance = Math.hypot(
         desiredCamera.current.x - desiredTarget.current.x,
         desiredCamera.current.z - desiredTarget.current.z,
@@ -315,6 +391,12 @@ function RealKarakoramDEMWorld({
         desiredTarget.current.y + horizontalDistance * Math.tan(0.04),
         sampleWorldHeight(grid, desiredCamera.current.x, desiredCamera.current.z) + SCENE_Y_OFFSET + 0.6,
       );
+      const offset = desiredCamera.current.clone().sub(desiredTarget.current);
+      const distance = offset.length();
+      if (distance < 6.8 || distance > MAX_ORBIT_DISTANCE) {
+        offset.setLength(THREE.MathUtils.clamp(distance, 6.8, MAX_ORBIT_DISTANCE));
+        desiredCamera.current.copy(desiredTarget.current).add(offset);
+      }
       const factor = reducedMotion ? 1 : 1 - Math.exp(-dt * 11);
       state.camera.position.lerp(desiredCamera.current, factor);
       orbit.target.lerp(desiredTarget.current, factor);
@@ -378,16 +460,34 @@ function RealKarakoramDEMWorld({
       overlay.uniforms.uRevealStrength.value = nextStrength;
       overlay.visible = nextStrength > 0;
       needsFrame ||= nextStrength !== probeStrength.current;
+      if (overlay.visible) {
+        state.gl.getDrawingBufferSize(drawingBufferSize.current);
+        const targetW = Math.max(1, drawingBufferSize.current.x);
+        const targetH = Math.max(1, drawingBufferSize.current.y);
+        if (
+          summerPortal.renderTarget.width !== targetW ||
+          summerPortal.renderTarget.height !== targetH
+        ) {
+          summerPortal.renderTarget.setSize(targetW, targetH);
+        }
+        overlay.uniforms.uViewportSize.value.set(targetW, targetH);
+        overlay.uniforms.uSummerSceneTexture.value = summerPortal.renderTarget.texture;
+        overlay.uniforms.uPortalEnabled.value = 1;
+        summerPortal.skyMesh.position.copy(state.camera.position);
+
+        const currentRenderTarget = state.gl.getRenderTarget();
+        try {
+          state.gl.setRenderTarget(summerPortal.renderTarget);
+          state.gl.clear();
+          state.gl.render(summerPortal.scene, state.camera);
+        } finally {
+          state.gl.setRenderTarget(currentRenderTarget);
+        }
+      }
     }
-    labelPlacements.current = sceneLabelPositions(state.camera, state.size, labelAnchors);
+    labelPlacements.current = calculateLabelPositions(state.camera, state.size);
     if (needsFrame) invalidate();
   }, -0.5);
-
-  const selectLandmark = (landmark: PeakLandmark) => {
-    userControlled.current = false;
-    onSelectLandmark(landmark);
-    invalidate();
-  };
 
   return (
     <>
@@ -439,10 +539,9 @@ function RealKarakoramDEMWorld({
               landmark={landmark}
               position={pinPosition}
               isActive={selected}
-              unit={unit}
-              onSelect={selectLandmark}
+              onUpdatePlacement={onUpdatePlacement}
               getPlacement={(camera, size) => labelPlacements.current[landmark.id]
-                ?? sceneLabelPositions(camera, size, labelAnchors)[landmark.id]}
+                ?? calculateLabelPositions(camera, size)[landmark.id]}
             />
           );
         })}
@@ -471,7 +570,7 @@ function StaticTerrainFallback({ retry }: { retry?: () => void }) {
         sizes="100vw"
         className="object-cover"
       />
-      <div className="absolute inset-x-4 bottom-20 mx-auto flex max-w-md flex-wrap items-center justify-center gap-3 bg-glacier-cream/95 p-4 text-center text-xs text-midnight-navy">
+      <div className="absolute inset-x-4 bottom-40 mx-auto flex max-w-md flex-wrap items-center justify-center gap-3 bg-glacier-cream/95 p-4 text-center text-xs text-midnight-navy sm:bottom-24">
         <p>
           The mountain map is unavailable. You can still choose a peak and
           explore its journeys below.
@@ -533,7 +632,11 @@ export function HeroKarakoramScene3D({
 }: HeroKarakoramScene3DProps) {
   const container = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [sceneReady, setSceneReady] = useState(false);
   const [sceneActive, setSceneActive] = useState(true);
+  const labelSizes = useRef<Record<string, SceneLabelSize>>({});
+  const labelHandles = useRef<Record<string, FloatingPeakLabelHandle | null>>({});
+  const invalidateScene = useRef<(() => void) | null>(null);
   const compact = useSyncExternalStore(
     subscribeCompactQuality,
     getCompactQuality,
@@ -541,6 +644,47 @@ export function HeroKarakoramScene3D({
   );
   const reducedMotion = useReducedMotionPreference();
   const { unit } = useInteractive();
+
+  const measureLabel = useCallback((id: string, width: number, height: number) => {
+    const previous = labelSizes.current[id];
+    if (previous?.width === width && previous.height === height) return;
+    labelSizes.current[id] = { width, height };
+    invalidateScene.current?.();
+  }, []);
+
+  const registerLabelHandle = useCallback(
+    (id: string, handle: FloatingPeakLabelHandle | null) => {
+      if (handle) {
+        labelHandles.current[id] = handle;
+      } else {
+        delete labelHandles.current[id];
+      }
+    },
+    [],
+  );
+
+  const handleUpdatePlacement = useCallback(
+    (id: string, placement: SceneLabelPlacement) => {
+      labelHandles.current[id]?.update(placement);
+    },
+    [],
+  );
+
+  const handleSceneReady = useCallback(
+    (ready: boolean, nextInvalidate: (() => void) | null) => {
+      invalidateScene.current = nextInvalidate;
+      setSceneReady(ready);
+    },
+    [],
+  );
+
+  const handleSelectLandmark = useCallback(
+    (landmark: PeakLandmark) => {
+      onSelectLandmark(landmark);
+      invalidateScene.current?.();
+    },
+    [onSelectLandmark],
+  );
 
   useEffect(() => {
     const element = container.current;
@@ -579,44 +723,65 @@ export function HeroKarakoramScene3D({
       )}
     >
       <TerrainBoundary>
-        <Canvas
-          frameloop={sceneActive ? "demand" : "never"}
-          dpr={compact ? 1 : [1, 1.4]}
-          camera={{ position: [-1.4, 4.15, 15.8], fov: 36, near: 0.1, far: CAMERA_FAR }}
-          gl={{
-            antialias: true,
-            alpha: false,
-            powerPreference: "high-performance",
-            toneMapping: THREE.NoToneMapping,
-            outputColorSpace: THREE.SRGBColorSpace,
-          }}
-          fallback={<StaticTerrainFallback />}
-        >
-          <color attach="background" args={["#DCE8F2"]} />
-          <Suspense
-            fallback={
-              <Html center>
-                <span
-                  role="status"
-                  className="whitespace-nowrap bg-glacier-cream/90 px-4 py-3 font-mono text-[10px] tracking-widest text-midnight-navy uppercase"
-                >
-                  Preparing the mountain map
-                </span>
-              </Html>
-            }
+        <div className="relative h-full w-full">
+          <Canvas
+            frameloop={sceneActive ? "demand" : "never"}
+            dpr={compact ? 1 : [1, 1.4]}
+            camera={{ position: [-1.4, 4.15, 15.8], fov: 36, near: 0.1, far: CAMERA_FAR }}
+            gl={{
+              antialias: true,
+              alpha: false,
+              powerPreference: "high-performance",
+              toneMapping: THREE.NoToneMapping,
+              outputColorSpace: THREE.SRGBColorSpace,
+            }}
+            fallback={<StaticTerrainFallback />}
           >
-            <RealKarakoramDEMWorld
-              activeLandmark={activeLandmark}
-              onSelectLandmark={onSelectLandmark}
-              onHoverElevation={onHoverElevation}
-              scrollProgress={scrollProgress}
-              resetTrigger={resetTrigger}
-              compact={compact}
-              reducedMotion={reducedMotion}
-              unit={unit}
-            />
-          </Suspense>
-        </Canvas>
+            <color attach="background" args={["#DCE8F2"]} />
+            <Suspense fallback={null}>
+              <RealKarakoramDEMWorld
+                activeLandmark={activeLandmark}
+                onHoverElevation={onHoverElevation}
+                scrollProgress={scrollProgress}
+                resetTrigger={resetTrigger}
+                compact={compact}
+                reducedMotion={reducedMotion}
+                labelSizes={labelSizes}
+                onUpdatePlacement={handleUpdatePlacement}
+                onSceneReady={handleSceneReady}
+              />
+            </Suspense>
+          </Canvas>
+          {!sceneReady && (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+              <span
+                role="status"
+                className="whitespace-nowrap bg-glacier-cream/90 px-4 py-3 font-mono text-[10px] tracking-widest text-midnight-navy uppercase"
+              >
+                Preparing the mountain map
+              </span>
+            </div>
+          )}
+          <div
+            aria-hidden={!sceneReady || undefined}
+            className={cn(
+              "pointer-events-none absolute inset-0 z-20 overflow-hidden",
+              !sceneReady && "invisible opacity-0 [&_*]:pointer-events-none",
+            )}
+          >
+            {HERO_LANDMARKS.map((landmark) => (
+              <FloatingPeakMarkerLabel
+                key={landmark.id}
+                landmark={landmark}
+                isActive={landmark.id === activeLandmark.id}
+                unit={unit}
+                onSelect={handleSelectLandmark}
+                onMeasure={measureLabel}
+                registerHandle={registerLabelHandle}
+              />
+            ))}
+          </div>
+        </div>
       </TerrainBoundary>
     </div>
   );
